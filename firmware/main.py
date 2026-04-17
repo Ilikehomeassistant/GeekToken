@@ -1,8 +1,8 @@
-# GeekToken v2.1.0 — Pico 2 W TOTP + GT Protocol + OTA + LED
+# GeekToken v2.1.1 — Pico 2 W TOTP + GT Protocol + OTA + LED
 # GT Protocol: JSON lines over USB serial
 # Wiring: SDA→GP4  SCL→GP5  VCC→3V3  GND→GND  LED→GP1
 
-VERSION      = "2.1.0"
+VERSION      = "2.1.1"
 GITHUB_USER  = "Ilikehomeassistant"
 GITHUB_REPO  = "GeekToken"
 VERSION_URL  = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/main/firmware/version.json"
@@ -408,27 +408,43 @@ async def protocol_task():
 
 async def display_task():
     global oled_dev, cur_acc
-    i2c      = I2C(0, sda=Pin(4), scl=Pin(5), freq=400_000)
-    oled_dev = SSD1306_I2C(i2c)
+
+    async def init_oled():
+        global oled_dev
+        while True:
+            try:
+                i2c      = I2C(0, sda=Pin(4), scl=Pin(5), freq=400_000)
+                oled_dev = SSD1306_I2C(i2c)
+                return
+            except OSError:
+                set_led("fast")
+                await asyncio.sleep_ms(1000)
+
+    await init_oled()
     show_msg(oled_dev, "GeekToken v2.1", "booting...")
     await asyncio.sleep(1)
-    # Boot: connect WiFi, sync time, check OTA
     await do_wifi_ntp(check_update=True)
 
     cycle = 0
     while True:
-        accs = cfg['accounts']
-        if accs:
-            acc = accs[cur_acc % len(accs)]
-            try:
-                show_code(oled_dev, totp(acc['secret']), remaining(), acc['label'])
-                if len(accs) > 1:
-                    cycle += 1
-                    if cycle >= 20: cycle = 0; cur_acc = (cur_acc+1) % len(accs)
-            except:
-                show_msg(oled_dev, "Bad secret!", acc['label'][:16])
-        else:
-            show_msg(oled_dev, "No accounts", "Use Manager app")
+        try:
+            accs = cfg['accounts']
+            if accs:
+                acc = accs[cur_acc % len(accs)]
+                try:
+                    show_code(oled_dev, totp(acc['secret']), remaining(), acc['label'])
+                    if len(accs) > 1:
+                        cycle += 1
+                        if cycle >= 20: cycle = 0; cur_acc = (cur_acc+1) % len(accs)
+                except (ValueError, IndexError):
+                    show_msg(oled_dev, "Bad secret!", acc['label'][:16])
+            else:
+                show_msg(oled_dev, "No accounts", "Use Manager app")
+        except OSError:
+            set_led("fast")
+            await asyncio.sleep_ms(2000)
+            await init_oled()
+            set_led("heartbeat")
         await asyncio.sleep_ms(500)
 
 async def main():
