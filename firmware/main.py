@@ -1,8 +1,8 @@
-# GeekToken v2.2.1 — Pico 2 W TOTP + GT Protocol + OTA + LED
+# GeekToken v2.2.3 — Pico 2 W TOTP + GT Protocol + OTA + LED
 # GT Protocol: JSON lines over USB serial
 # Wiring: SDA→GP4  SCL→GP5  VCC→3V3  GND→GND  LED→GP1
 
-VERSION      = "2.2.1"
+VERSION      = "2.2.3"
 GITHUB_USER  = "Ilikehomeassistant"
 GITHUB_REPO  = "GeekToken"
 VERSION_URL  = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/main/firmware/version.json"
@@ -210,10 +210,22 @@ def check_ota(oled):
         time.sleep(2)
         show_msg(oled, "Downloading...", f"v{latest}")
 
-        r = urequests.get(FIRMWARE_URL, timeout=30)
-        fw = r.text; r.close()
+        r = urequests.get(FIRMWARE_URL, timeout=60)
+        written = 0
+        with open('main_ota.py', 'wb') as f:
+            while True:
+                chunk = r.raw.read(512)
+                if not chunk: break
+                f.write(chunk)
+                written += len(chunk)
+        r.close()
 
-        with open('main_ota.py', 'w') as f: f.write(fw)
+        if written < 5000:
+            show_msg(oled, "DL too small!", f"{written}b - abort")
+            set_led("heartbeat")
+            time.sleep(3)
+            return False
+
         import uos
         try:    uos.remove('main.py')
         except: pass
