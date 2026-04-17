@@ -1,4 +1,4 @@
 {
-  "version": "2.2.0",
-  "notes": "OTA test - v2.2 splash + label bar"
+  "version": "2.2.1",
+  "notes": "Fix OTA boot timing"
 }
