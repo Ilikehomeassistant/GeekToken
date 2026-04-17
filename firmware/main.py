@@ -2,7 +2,7 @@
 # GT Protocol: JSON lines over USB serial
 # Wiring: SDA→GP4  SCL→GP5  VCC→3V3  GND→GND  LED→GP1
 
-VERSION      = "2.2.3"
+VERSION      = "2.2.4"
 GITHUB_USER  = "Ilikehomeassistant"
 GITHUB_REPO  = "GeekToken"
 VERSION_URL  = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/main/firmware/version.json"
@@ -192,10 +192,22 @@ def wifi_connect(ssid, pwd, timeout=20):
 def check_ota(oled):
     import urequests
     try:
-        show_msg(oled, "Checking OTA...", VERSION_URL[-20:])
-        set_led("fast")
-        r = urequests.get(VERSION_URL, timeout=10)
-        info = r.json(); r.close()
+        info = None
+        for attempt in range(4):
+            try:
+                show_msg(oled, "Checking OTA...", f"attempt {attempt+1}")
+                set_led("fast")
+                r = urequests.get(VERSION_URL, timeout=15)
+                info = r.json(); r.close()
+                if info.get('version'): break
+            except Exception as e:
+                show_msg(oled, f"retry {attempt+1}/4", str(e)[:16])
+                time.sleep(3)
+        if not info or not info.get('version'):
+            show_msg(oled, "OTA check fail", "no version data")
+            set_led("heartbeat")
+            time.sleep(2)
+            return False
         latest = info.get('version', VERSION)
         notes  = info.get('notes', '')
 
