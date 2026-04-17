@@ -2,7 +2,6 @@
 # GT Protocol: JSON lines over USB serial
 # Wiring: SDA→GP4  SCL→GP5  VCC→3V3  GND→GND  LED→GP1
 
-VERSION      = "2.2.5"
 GITHUB_USER  = "Ilikehomeassistant"
 GITHUB_REPO  = "GeekToken"
 VERSION_URL  = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/main/firmware/version.json"
@@ -11,6 +10,15 @@ FIRMWARE_URL = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/m
 import uasyncio as asyncio
 import json, sys, time, struct, hashlib, select, network, ntptime, framebuf
 from machine import I2C, Pin, PWM, reset
+
+def _load_version():
+    try:
+        with open('version.json') as f:
+            return json.load(f).get('version', '0.0.0')
+    except:
+        return '0.0.0'
+
+VERSION = _load_version()
 
 # ═══════════════════════════════════════════════════════════════
 #  LED (GP1) — breathing heartbeat pattern
@@ -242,6 +250,8 @@ def check_ota(oled):
         try:    uos.remove('main.py')
         except: pass
         uos.rename('main_ota.py', 'main.py')
+        with open('version.json', 'w') as f:
+            json.dump({'version': latest, 'notes': notes}, f)
 
         show_msg(oled, "OTA complete!", f"v{latest}", "Rebooting...")
         set_led("on")
