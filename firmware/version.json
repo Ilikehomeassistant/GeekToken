@@ -1,4 +1,1 @@
-{
-  "version": "2.2.1",
-  "notes": "Fix OTA boot timing"
-}
+{"version": "2.2.3", "notes": "Chunked OTA download"}
