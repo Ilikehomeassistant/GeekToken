@@ -470,9 +470,6 @@ async def display_task():
                 acc = accs[cur_acc % len(accs)]
                 try:
                     show_code(oled_dev, totp(acc['secret']), remaining(), acc['label'])
-                    if len(accs) > 1:
-                        cycle += 1
-                        if cycle >= 20: cycle = 0; cur_acc = (cur_acc+1) % len(accs)
                 except (ValueError, IndexError):
                     show_msg(oled_dev, "Bad secret!", acc['label'][:16])
             else:
@@ -484,7 +481,22 @@ async def display_task():
             set_led("heartbeat")
         await asyncio.sleep_ms(500)
 
+async def button_task():
+    global cur_acc
+    btn = Pin(2, Pin.IN, Pin.PULL_UP)
+    pressed = False
+    while True:
+        if not btn.value():
+            if not pressed:
+                pressed = True
+                if cfg['accounts']:
+                    cur_acc = (cur_acc + 1) % len(cfg['accounts'])
+                set_led("blink")
+        else:
+            pressed = False
+        await asyncio.sleep_ms(50)
+
 async def main():
-    await asyncio.gather(display_task(), protocol_task(), led_task())
+    await asyncio.gather(display_task(), protocol_task(), led_task(), button_task())
 
 asyncio.run(main())
