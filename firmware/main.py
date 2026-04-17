@@ -1,8 +1,8 @@
-# GeekToken v2.2.0 — Pico 2 W TOTP + GT Protocol + OTA + LED
+# GeekToken v2.2.1 — Pico 2 W TOTP + GT Protocol + OTA + LED
 # GT Protocol: JSON lines over USB serial
 # Wiring: SDA→GP4  SCL→GP5  VCC→3V3  GND→GND  LED→GP1
 
-VERSION      = "2.2.0"
+VERSION      = "2.2.1"
 GITHUB_USER  = "Ilikehomeassistant"
 GITHUB_REPO  = "GeekToken"
 VERSION_URL  = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/main/firmware/version.json"
@@ -151,9 +151,7 @@ def draw_large(oled, text, x, y):
 
 def show_code(oled, code, secs, label):
     oled.fill(0)
-    # version tag top-right
-    oled.text("v2.2", 96, 0, 1)
-    oled.text(label, max(0,(96-len(label)*8)//2), 0, 1)
+    oled.text(label, max(0,(128-len(label)*8)//2), 0, 1)
     s = "{:06d}".format(code)
     disp = s[:3] + " " + s[3:]
     draw_large(oled, disp, max(0,(128-len(disp)*14)//2), 10)
@@ -271,6 +269,7 @@ async def do_wifi_ntp(check_update=False):
 
     if wifi_ok:
         set_led("blink")
+        await asyncio.sleep(2)
         show_msg(oled_dev, "Syncing time...")
         try:
             ntptime.settime(); time_synced = True
@@ -425,8 +424,8 @@ async def display_task():
                 await asyncio.sleep_ms(1000)
 
     await init_oled()
-    show_msg(oled_dev, "GeekToken v2.2", "OTA test build!")
-    await asyncio.sleep(2)
+    show_msg(oled_dev, "GeekToken v2.2", "booting...")
+    await asyncio.sleep(1)
     await do_wifi_ntp(check_update=True)
 
     cycle = 0
