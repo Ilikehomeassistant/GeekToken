@@ -458,7 +458,7 @@ async def display_task():
                 await asyncio.sleep_ms(1000)
 
     await init_oled()
-    show_msg(oled_dev, "GeekToken v2.2", "BETA VERSION")
+    show_msg(oled_dev, "GeekToken v2.2", "hi john")
     await asyncio.sleep(1)
     await do_wifi_ntp(check_update=True)
 
