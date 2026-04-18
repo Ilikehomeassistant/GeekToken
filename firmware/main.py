@@ -80,9 +80,16 @@ def set_led(mode):
 
 def load_cfg():
     try:
-        with open('config.json') as f: return json.load(f)
+        with open('config.json') as f: c = json.load(f)
     except:
-        return {'wifi': {'ssid': 'SKYF30B4', 'pass': 'PWCSDPFU'}, 'accounts': []}
+        c = {}
+    # migrate single wifi -> networks list
+    if 'wifi' in c and 'networks' not in c:
+        c['networks'] = [{'ssid': c['wifi'].get('ssid',''), 'pass': c['wifi'].get('pass','')}]
+        del c['wifi']
+    if 'networks' not in c: c['networks'] = []
+    if 'accounts' not in c: c['accounts'] = []
+    return c
 
 def save_cfg(c):
     with open('config.json', 'w') as f: json.dump(c, f)
@@ -284,22 +291,28 @@ _upd_mode   = False
 
 async def do_wifi_ntp(check_update=False):
     global time_synced, wifi_ok
-    ssid = cfg['wifi'].get('ssid','')
-    pwd  = cfg['wifi'].get('pass','')
-    if not ssid:
+    networks = cfg.get('networks', [])
+    if not networks:
         show_msg(oled_dev, "No WiFi set", "Use Manager app")
         await asyncio.sleep(2); return
 
-    set_led("fast")
-    show_msg(oled_dev, "Connecting...", ssid[:16])
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
-    wlan.connect(ssid, pwd)
+    set_led("fast")
 
-    for i in range(20):
-        if wlan.isconnected(): wifi_ok = True; break
-        show_msg(oled_dev, "Connecting"+"."*(i%4), ssid[:16])
-        await asyncio.sleep(1)
+    for net in networks:
+        ssid = net.get('ssid', '')
+        pwd  = net.get('pass', '')
+        if not ssid: continue
+        show_msg(oled_dev, "Connecting...", ssid[:16])
+        wlan.connect(ssid, pwd)
+        for i in range(15):
+            if wlan.isconnected(): wifi_ok = True; break
+            show_msg(oled_dev, "Connecting"+"."*(i%4), ssid[:16])
+            await asyncio.sleep(1)
+        if wifi_ok: break
+        wlan.disconnect()
+        await asyncio.sleep_ms(500)
 
     if wifi_ok:
         set_led("blink")
@@ -368,10 +381,25 @@ async def gt_handle(line):
         gt_send({'ok':True,'removed':before-len(cfg['accounts'])})
 
     elif c == 'set_wifi':
-        cfg['wifi']['ssid'] = cmd.get('ssid','')
-        cfg['wifi']['pass'] = cmd.get('pass','')
+        ssid = cmd.get('ssid','')
+        pwd  = cmd.get('pass','')
+        nets = cfg.setdefault('networks', [])
+        existing = next((n for n in nets if n['ssid'] == ssid), None)
+        if existing:
+            existing['pass'] = pwd
+        else:
+            nets.append({'ssid': ssid, 'pass': pwd})
         save_cfg(cfg)
         gt_send({'ok':True})
+
+    elif c == 'del_wifi':
+        ssid = cmd.get('ssid','')
+        cfg['networks'] = [n for n in cfg.get('networks',[]) if n['ssid'] != ssid]
+        save_cfg(cfg)
+        gt_send({'ok':True})
+
+    elif c == 'get_wifi':
+        gt_send({'ok':True,'networks':[n['ssid'] for n in cfg.get('networks',[])]})
 
     elif c == 'sync_time':
         asyncio.create_task(do_wifi_ntp())
